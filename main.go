@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/exp/rand"
 )
 
 type User struct {
@@ -41,11 +41,44 @@ func main() {
 }
 
 func response(c *gin.Context) {
-	fmt.Println("path, and method:", c.Request.URL.Path, c.Request.Method)
 	ctx := c.Request.Context()
-	var data string
-	err := db.QueryRow(ctx, "select data from apis where url = $1", c.Request.URL.Path).Scan(&data)
-	if err != nil || data == "" {
+	var q string = `
+		select 
+			json_agg(
+				json_build_object(
+					'data', data,
+					'status', status
+				)
+			) as results
+		from apis
+		where url = $1 and method = $2
+	`
+	var jsonData []byte
+	s := c.Query("muckStatus")
+	var err error
+
+	if s != "" {
+		q += " and status = $3"
+		err = db.QueryRow(ctx, q, c.Request.URL.Path, c.Request.Method, s).Scan(&jsonData)
+	} else {
+		err = db.QueryRow(ctx, q, c.Request.URL.Path, c.Request.Method).Scan(&jsonData)
+	}
+	if err != nil || len(jsonData) == 0 {
+		log.Printf("not found: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var data []Result
+	err = json.Unmarshal(jsonData, &data)
+	if err != nil {
+		log.Printf("Error unmarshalling JSON: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unmarshal JSON"})
+		return
+	}
+
+	randomResult := rand.Intn(len(data))
+
+	if data[randomResult].Data == "" {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error":   "Route not found",
 			"message": "The requested URL was not found on this server",
@@ -53,15 +86,12 @@ func response(c *gin.Context) {
 		return
 	}
 
-	// Try to parse `data` as JSON
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(data), &jsonData); err == nil {
-		// If parsing succeeds, return the parsed JSON
-		c.JSON(http.StatusOK, jsonData)
+	var j map[string]interface{}
+	if err := json.Unmarshal([]byte(data[randomResult].Data), &j); err == nil {
+		c.JSON(data[randomResult].Status, j)
 		return
 	}
 
-	// If parsing fails, return `data` as a plain string
 	c.JSON(http.StatusInternalServerError, gin.H{
 		"error":   "Internal server error",
 		"message": "An internal server error occurred",
@@ -72,6 +102,7 @@ func create(c *gin.Context) {
 	log.Println("Creating a new user...")
 	ctx := c.Request.Context()
 	var api API
+
 	if err := c.ShouldBindJSON(&api); err != nil {
 		log.Printf("Invalid input: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -86,8 +117,8 @@ func create(c *gin.Context) {
 	}
 
 	_, err = db.Exec(ctx,
-		"INSERT INTO apis (url, data) VALUES ($1, $2)",
-		api.URL, string(dataJSON))
+		"INSERT INTO apis (url, data, status, method) VALUES ($1, $2, $3, $4)",
+		api.URL, string(dataJSON), api.Status, api.Method)
 
 	if err != nil {
 		log.Printf("Error creating api: %v", err)
