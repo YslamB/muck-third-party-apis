@@ -1,0 +1,8 @@
+services:
+    muck-server:
+        image: muck-server
+        build:
+            context: .
+        container_name: muck-server-container
+        ports:
+            - "8083:8080" 
