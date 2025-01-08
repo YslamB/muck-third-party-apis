@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -36,8 +37,8 @@ func main() {
 	r.DELETE("/muck/:url", delete)
 	r.NoRoute(response)
 
-	log.Println("Starting server on port 8080...")
-	r.Run(":8080")
+	log.Println("Starting server on port 8083...")
+	r.Run(":8083")
 }
 
 func response(c *gin.Context) {
@@ -56,6 +57,8 @@ func response(c *gin.Context) {
 	var jsonData []byte
 	s := c.Query("muckStatus")
 	var err error
+	fmt.Println("c.Request.URL.Path")
+	fmt.Println(c.Request.URL.Path)
 
 	if s != "" {
 		q += " and status = $3"
@@ -63,13 +66,16 @@ func response(c *gin.Context) {
 	} else {
 		err = db.QueryRow(ctx, q, c.Request.URL.Path, c.Request.Method).Scan(&jsonData)
 	}
+
 	if err != nil || len(jsonData) == 0 {
 		log.Printf("not found: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+
 	var data []Result
 	err = json.Unmarshal(jsonData, &data)
+
 	if err != nil {
 		log.Printf("Error unmarshalling JSON: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unmarshal JSON"})
@@ -87,15 +93,14 @@ func response(c *gin.Context) {
 	}
 
 	var j map[string]interface{}
-	if err := json.Unmarshal([]byte(data[randomResult].Data), &j); err == nil {
+	if err = json.Unmarshal([]byte(data[randomResult].Data), &j); err == nil {
 		c.JSON(data[randomResult].Status, j)
+		return
+	} else {
+		c.JSON(data[randomResult].Status, data[randomResult].Data)
 		return
 	}
 
-	c.JSON(http.StatusInternalServerError, gin.H{
-		"error":   "Internal server error",
-		"message": "An internal server error occurred",
-	})
 }
 
 func create(c *gin.Context) {
