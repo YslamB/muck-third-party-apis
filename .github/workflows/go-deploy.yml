@@ -1,0 +1,44 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.4'
+
+      # Step 3: Build the Go binary
+      - name: Build Binary
+        run: |
+          go mod tidy
+          go build -o app main.go
+
+      # Step 4: Set up SSH agent
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Step 5: Deploy binary to the server
+      - name: Deploy to Server
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          scp -P $DEPLOY_PORT ./app $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/app
+          ssh -p $DEPLOY_PORT $DEPLOY_USER@$DEPLOY_HOST "sudo systemctl restart your-app.service"
