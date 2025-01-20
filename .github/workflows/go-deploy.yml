@@ -45,5 +45,5 @@ jobs:
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
           scp -P $DEPLOY_PORT ./app $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/app.tmp
-          ssh -p 4422 $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH 'mv app.tmp app'
+          ssh -p $DEPLOY_PORT $DEPLOY_USER@$DEPLOY_HOST "mv $DEPLOY_PATH/app.tmp $DEPLOY_PATH/app"
           ssh -p $DEPLOY_PORT $DEPLOY_USER@$DEPLOY_HOST "echo '$SUDO_PASSWORD' | sudo -S systemctl restart muck.service"
