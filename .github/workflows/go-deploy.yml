@@ -24,7 +24,7 @@ jobs:
       - name: Build Binary
         run: |
           go mod tidy
-          go build -o app main.go
+          go build -o app .
 
       # Step 4: Set up SSH agent
       - name: Set up SSH
