@@ -10,29 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
+      # Step 1
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Go environment
+      # Step 2
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+            ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Step 3
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.23.4'
 
-      # Step 3: Build the Go binary
+      # Step 4
       - name: Build Binary
         run: |
           go mod tidy
           go build -o app .
 
-      # Step 4: Set up SSH agent
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      # Step 5: Deploy binary to the server
+      # Step 5
       - name: Deploy to Server
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
