@@ -42,6 +42,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
           scp -P $DEPLOY_PORT ./app $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/app
-          ssh -p $DEPLOY_PORT $DEPLOY_USER@$DEPLOY_HOST "sudo systemctl restart your-app.service"
+          ssh -p $DEPLOY_PORT $DEPLOY_USER@$DEPLOY_HOST "echo $SUDO_PASSWORD | sudo -S systemctl restart your-app.service"
